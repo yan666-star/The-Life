@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model GameSession {
+  id               String   @id @default(uuid())
+  status           String   @default("active")
+  activePathLeafId String?
+  generatingLock   Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  endedAt          DateTime?
+
+  profileInput       ProfileInput?
+  characterModel     CharacterModel?
+  attributeSnapshots AttributeSnapshot[]
+  treeNodes          DestinyTreeNode[]
+  batches            NodeGenerationBatch[]
+  chosenPathNodes    ChosenPathNode[]
+  comparisonSlots    ComparisonSlot[]
+  comparisonVideos   ComparisonVideoJob[]
+  finalReports       FinalReport[]
+  chatSessions       ChatSession[]
+  aiRequestLogs      AIRequestLog[]
+}
+
+model ProfileInput {
+  id        String   @id @default(uuid())
+  sessionId String   @unique
+  dataJson  String
+  createdAt DateTime @default(now())
+  session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model CharacterModel {
+  id        String   @id @default(uuid())
+  sessionId String   @unique
+  dataJson  String
+  createdAt DateTime @default(now())
+  session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model AttributeSnapshot {
+  id           String   @id @default(uuid())
+  sessionId    String
+  round        Int      @default(0)
+  career       Int
+  finance      Int
+  relationship Int
+  health       Int
+  growth       Int
+  source       String
+  treeNodeId   String?
+  createdAt    DateTime @default(now())
+  session      GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model NodeGenerationBatch {
+  id               String   @id @default(uuid())
+  sessionId        String
+  parentTreeNodeId String
+  round            Int
+  promptVersion    String   @default("v1")
+  provider         String
+  model            String
+  createdAt        DateTime @default(now())
+  session          GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  nodes            DestinyTreeNode[]
+}
+
+model DestinyTreeNode {
+  id              String   @id @default(uuid())
+  sessionId       String
+  parentId        String?
+  depth           Int
+  round           Int
+  title           String
+  action          String   @default("")
+  story           String   @default("")
+  result          String   @default("")
+  summary         String   @default("")
+  branchStatus    String
+  isOnActivePath  Boolean  @default(false)
+  batchId         String?
+  payloadJson     String   @default("{}")
+  createdAt       DateTime @default(now())
+  session         GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  batch           NodeGenerationBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, parentId])
+  @@index([sessionId, branchStatus])
+}
+
+model ChosenPathNode {
+  id          String   @id @default(uuid())
+  sessionId   String
+  treeNodeId  String
+  orderIndex  Int
+  summary     String
+  fullContent String
+  createdAt   DateTime @default(now())
+  session     GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, treeNodeId])
+  @@index([sessionId, orderIndex])
+}
+
+model ComparisonSlot {
+  id             String   @id @default(uuid())
+  sessionId      String
+  side           String
+  treeNodeId     String?
+  packetSnapshot String
+  updatedAt      DateTime @updatedAt
+  session        GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, side])
+}
+
+model ComparisonVideoJob {
+  id            String   @id @default(uuid())
+  sessionId     String
+  side          String
+  treeNodeId    String?
+  status        String   @default("pending")
+  videoUrl      String?
+  posterUrl     String?
+  scriptText    String?
+  provider      String   @default("stub")
+  externalJobId String?
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  session       GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, side])
+}
+
+model FinalReport {
+  id        String   @id @default(uuid())
+  sessionId String
+  dataJson  String
+  createdAt DateTime @default(now())
+  session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model ChatSession {
+  id         String   @id @default(uuid())
+  sessionId  String
+  mentorRole String
+  createdAt  DateTime @default(now())
+  session    GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  messages   ChatMessage[]
+
+  @@unique([sessionId, mentorRole])
+}
+
+model ChatMessage {
+  id                  String   @id @default(uuid())
+  chatSessionId       String
+  role                String
+  mentorRole          String
+  content             String
+  contextSnapshotJson String?
+  createdAt           DateTime @default(now())
+  chatSession         ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+
+  @@index([chatSessionId, createdAt])
+}
+
+model AIRequestLog {
+  id           String   @id @default(uuid())
+  sessionId    String?
+  kind         String
+  provider     String
+  model        String
+  promptVersion String?
+  latencyMs    Int?
+  success      Boolean
+  error        String?
+  createdAt    DateTime @default(now())
+  session      GameSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
