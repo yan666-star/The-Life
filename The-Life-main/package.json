@@ -13,7 +13,7 @@
     "three": "^0.172.0",
     "@vueuse/core": "^11.0.0",
     "gsap": "^3.12.5",
-    "axios": "^1.6.2"
+    "axios": "^1.16.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
